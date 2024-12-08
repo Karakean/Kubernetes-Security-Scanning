@@ -2,6 +2,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: attacker-pod
+  namespace: task-2-namespace
   labels:
     app: attacker-pod
 spec:

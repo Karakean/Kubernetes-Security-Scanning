@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: web-app-deployment
+  namespace: task-2-namespace
   labels:
     app: web-app-deployment
 spec:

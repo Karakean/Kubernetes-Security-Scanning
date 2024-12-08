@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-web-app-outbound-to-database
+  namespace: task-2-namespace
+spec:
+  podSelector:
+    matchLabels:
+      app: web-app-pod
+  policyTypes:
+    - Egress
+    - Ingress
+  ingress:
+    - from: []
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: database-pod
+      ports:
+        - protocol: TCP
+          port: 5432

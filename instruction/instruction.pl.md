@@ -617,3 +617,28 @@ Zadanie podzielone zostało na następujące fazy:
 3. Wcielisz się w rolę administratora systemu Kubernetes i z wykorzystaniem odpowiednich narzędzi wykryjesz brak odpowiedniej izolacji sieci.
 4. Wciąż jako administrator wprowadzisz odpowiednią izolację sieci z wykorzystaniem Network Policies.
 5. Ponownie wcielisz się w rolę atakującego, aby powtórzyć atak.
+
+## 1. Deployment aplikacji webowej oraz bazy danych
+
+## 2. Atak na bazę danych
+kubectl get pods -o wide
+psql -h <database-ip> -p <port> -U <username> -d <database-name>
+SELECT * FROM users;
+
+## 3. Skan systemu
+
+curl -s https://raw.githubusercontent.com/kubescape/kubescape/master/install.sh | /bin/bash
+kubescape scan control C-0260 -v --include-namespaces default
+
+
+
+curl -LO https://github.com/Shopify/kubeaudit/releases/download/v0.22.2/kubeaudit_0.22.2_linux_amd64.tar.gz
+tar -xvf kubeaudit_0.22.2_linux_amd64.tar.gz
+chmod +x kubeaudit
+mv kubeaudit /usr/local/bin/
+kubeaudit netpols -f task-2-namespace.yaml 
+
+
+## 4. Wprowadzenie izolacji sieci
+
+## 5. Powtórny atak na bazę danych
