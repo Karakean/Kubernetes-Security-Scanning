@@ -608,3 +608,12 @@ W celu weryfikacji wykonania zadania w raporcie zamieść katalog `/etc/kubernet
 Za wszelkie aktywności nadobowiązkowe (przykładowo: przeprowadzenie testów manualnych wypunktowanych przez `kube-bench`) przewidziane są dodatkowe punkty :).
 
 ---
+
+# Zadanie 2. - izolacja sieci w systemie Kubernetes
+Zadanie polega na odizolowaniu odpowiednich komponentów systemu Kubernetes na poziomie sieciowym z wykorzystaniem Network Policies.
+Zadanie podzielone zostało na następujące fazy:
+1. Wcielisz się w rolę developera i wykonasz deployment swojej prostej aplikacji webowej wraz z bazą danych. 
+2. Wcielisz się w rolę atakującego i wykorzystasz domyślny brak izolacji podów w systemie Kubernetes wykonując atak na bazę danych, która została stworzona w ramach zadania pierwszego.
+3. Wcielisz się w rolę administratora systemu Kubernetes i z wykorzystaniem odpowiednich narzędzi wykryjesz brak odpowiedniej izolacji sieci.
+4. Wciąż jako administrator wprowadzisz odpowiednią izolację sieci z wykorzystaniem Network Policies.
+5. Ponownie wcielisz się w rolę atakującego, aby powtórzyć atak.

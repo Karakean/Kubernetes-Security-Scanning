@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: attacker-pod
+  labels:
+    app: attacker-pod
+spec:
+  tolerations:
+    - key: "node-role.kubernetes.io/control-plane"
+      operator: "Exists"
+      effect: "NoSchedule"
+    - key: "node-role.kubernetes.io/control-plane"
+      operator: "Exists"
+  containers:
+    - name: alpine-linux
+      image: alpine:3.20
+      command: ["sh", "-c", "apk add --no-cache postgresql-client && sleep 3600"]
