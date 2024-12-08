@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: database-deployment
+  labels:
+    app: database-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: database-pod
+  template:
+    metadata:
+      labels:
+        app: database-pod
+    spec:
+      containers:
+      - name: database-container
+        image: ghcr.io/karakean/kubernetes-security-database
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_USER
+          value: "user"
+        - name: POSTGRES_PASSWORD
+          value: "password"
+        - name: POSTGRES_DB
+          value: "database"
