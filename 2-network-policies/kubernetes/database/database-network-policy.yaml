@@ -9,6 +9,7 @@ spec:
       app: database-pod
   policyTypes:
     - Ingress
+    - Egress
   ingress:
     - from:
         - podSelector:

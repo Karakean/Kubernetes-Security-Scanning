@@ -1,7 +1,7 @@
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: allow-web-app-outbound-to-database
+  name: web-app-network-policy
   namespace: task-2-namespace
 spec:
   podSelector:

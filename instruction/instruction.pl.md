@@ -620,25 +620,312 @@ Zadanie podzielone zostało na następujące fazy:
 
 ## 1. Deployment aplikacji webowej oraz bazy danych
 
+W ramach tej części zadania wcielamy się w rolę developera, który chce wykonać deployment swojej aplikacji webowej wykorzystującą bazę danych.
+
+### 1. Tworzenie namespace
+W pierwszej kolejności musimy stworzyć namespace w ramach którego będziemy wdrażać swoje zasoby.
+Tworzymy plik o nazwie task-2-namespace.yaml z następującą zawartością:
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: task-2-namespace
+```
+Zasób tworzymy poprzez wykonanie komendy
+`kubectl apply -f task-2-namespace.yaml`
+
+### 2. Wdrażanie bazy danych
+Następnie wdrażamy odpowiedniego poda z naszą bazą danych. Tworzymy plik database-pod.yaml z następującą zawartością:
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: database-pod
+  namespace: task-2-namespace
+  labels:
+    app: database-pod
+spec:
+  tolerations:
+    - key: "node-role.kubernetes.io/control-plane"
+      operator: "Exists"
+      effect: "NoSchedule"
+    - key: "node-role.kubernetes.io/control-plane"
+      operator: "Exists"
+  containers:
+  - name: database-container
+    image: ghcr.io/karakean/kubernetes-security-database
+    ports:
+    - containerPort: 5432
+    env:
+    - name: POSTGRES_USER
+      value: "user"
+    - name: POSTGRES_PASSWORD
+      value: "password"
+    - name: POSTGRES_DB
+      value: "database"
+```
+Uwaga! W rzeczywistym scenariuszu danych wrażliwych nie podajemy w postaci jawnej, służą do tego sekrety Kubernetesowe.
+Ponownie zasób tworzymy wykonując komendę `kubectl apply -f <NAZWA_PLIKU>`. Dotyczy to też wszystkich następnych kroków gdzie będziemy tworzyć zasoby poprzez manifesty YAMLowe.
+
+Następnie potrzebujemy service typu ClusterIP przez który komunikować będziemy się z naszą bazą danych. Tworzymy plik database-service.yaml z poniższą zawartością:
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: database-service
+  namespace: task-2-namespace
+spec:
+  ports:
+  - port: 5432
+    targetPort: 5432
+  selector:
+    app: database-pod
+```
+
+### 3. Wdrażanie aplikacji webowej
+Tworzymy obiekt typu deployment dla naszej aplikacji webowej poprzez stworzenie pliku web-app-deployment.yaml z zawartością jak poniżej:
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-app-deployment
+  namespace: task-2-namespace
+  labels:
+    app: web-app-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web-app-pod
+  template:
+    metadata:
+      labels:
+        app: web-app-pod
+    spec:
+      tolerations:
+        - key: "node-role.kubernetes.io/control-plane"
+          operator: "Exists"
+          effect: "NoSchedule"
+        - key: "node-role.kubernetes.io/control-plane"
+          operator: "Exists"
+      containers:
+        - name: web-app-container
+          image: ghcr.io/karakean/kubernetes-security-web-app
+          ports:
+            - containerPort: 3000
+          env:
+            - name: DB_USER
+              value: "user"
+            - name: DB_PASSWORD
+              value: "password"
+            - name: DB_HOST
+              value: "database-service"
+            - name: DB_NAME
+              value: "database"
+            - name: DB_PORT
+              value: "5432"
+            - name: PORT
+              value: "3000"
+```
+Uwaga! W rzeczywistym scenariuszu danych wrażliwych nie podajemy w postaci jawnej, służą do tego sekrety Kubernetesowe.
+Jak możemy zauważyć dane do logowania do naszej bazy nie są zbyt bezpieczne. W dalszej części zadania, wcielając się w postać atakującego, wykorzystamy ten fakt.
+
+Następnie potrzebujemy service typu NodePort który umożliwi nam komunikację z naszą aplikacją z zewnątrz klastra. Tworzymy plik web-app-service.yaml z poniższą zawartością:
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-app-service
+  namespace: task-2-namespace
+spec:
+  type: NodePort
+  ports:
+  - nodePort: 30001
+    port: 3000
+    targetPort: 3000
+  selector:
+    app: web-app-pod
+```
+
+### 4. Logowanie
+
+W przeglądarce wpisujemy adres `http://localhost:XX31`, gdzie `XX` to dwie ostatnie cyfry naszego numeru indeksu.
+Naszym oczom ukazuje się ekran logowania do którego wprowadzamy wymyślone przez siebie dane.
+Uwaga! Nie należy wprowadzać swoich prawdziwych loginów i haseł!
+Po zalogowaniu powinniśmy uzyskać komunikat o pomyślnym zalogowaniu.
+Wykonujemy zrzut ekranu i nazywamy go XXXXXX_zad2_1.jpg, gdzie XXXXXX to nasz numer indeksu. 
+
 ## 2. Atak na bazę danych
-kubectl get pods -o wide
-psql -h <database-ip> -p <port> -U <username> -d <database-name>
-SELECT * FROM users;
+
+W ramach drugiego podzadania wcielimy się w rolę atakującego i wykonamy atak na uprzednio wdrożoną bazę danych.
+
+### 1. Tworzenie środowiska ataku
+Tworzymy plik attacker-pod.yaml o poniższej zawartości:
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: attacker-pod
+  namespace: task-2-namespace
+  labels:
+    app: attacker-pod
+spec:
+  tolerations:
+    - key: "node-role.kubernetes.io/control-plane"
+      operator: "Exists"
+      effect: "NoSchedule"
+    - key: "node-role.kubernetes.io/control-plane"
+      operator: "Exists"
+  containers:
+    - name: alpine-linux
+      image: alpine:3.20
+      command: ["sh", "-c", "apk add --no-cache postgresql-client && sleep 3600"]
+```
+
+### 2. Uzyskanie adresu IP
+Poprzez wykonanie komendy `kubectl get pods -o wide -n task-2-namespace` uzyskujemy adres IP poda z bazą danych. W rzeczywistym scenariuszu ataku adres ten moglibyśmy uzyskać np. poprzez skanowanie sieci.
+
+### 3. Wykonanie ataku
+Wykonujemy komendę
+`psql -h <ADRES_IP_BAZY_DANYCH> -p 5432 -U <NAZWA_UŻYTKOWNIKA> -d database`
+gdzie w `<ADRES_IP_BAZY_DANYCH>` wprowadzamy uzyskany adres IP poda bazy danych, zaś w `<NAZWA_UŻYTKOWNIKA>` oraz haśle użyte wcześniej przy wdrażaniu sekretne wartości, które ze względu na prostotę nie byłyby zbyt skomplikowane do odgadnięcia dla rzeczywistego atakującego.
+
+Po podłączeniu się do bazy wykonujemy komendę:
+`SELECT * FROM users;`
+Wykonujemy zrzut ekranu i nazywamy go XXXXXX_zad2_2.jpg, gdzie XXXXXX to nasz numer indeksu.
+Po wykonaniu proszę usunąć poda attacker-pod komendą `kubectl delete pod <NAZWA_PODA> -n <NAZWA_NAMESPACE>`.
 
 ## 3. Skan systemu
 
-curl -s https://raw.githubusercontent.com/kubescape/kubescape/master/install.sh | /bin/bash
-kubescape scan control C-0260 -v --include-namespaces default
+W tej części zadania wcielamy się w administratora systemu Kubernetes, który przeprowadzi skan celem wykrycia niewystarczającej izolacji sieci.
 
+### 1. Pobranie narzędzi do skanowania sieci
+W pierwszej kolejności należy pobrać narzędzie, które umożliwi nam wykrycie braku izolacji sieci na poziomie komunikacji między podami w systemie Kubernetes.
 
+Dla przykładu może, ale nie musi, być to narzędzie Kubescape, które instalujemy za pomocą poniższej komendy. Komenda zainstaluje narzędzie oraz przeprowadzi ogólny skan:
+`curl -s https://raw.githubusercontent.com/kubescape/kubescape/master/install.sh | /bin/bash`
 
+### 2. Przeprowadzenie skanu pod kątem braku polityk sieciowych
+
+W celu uzyskania dokładniejszych informacji odnośnie polityk sieciowych w naszym namespace z narzędziem Kubescape wykonujemy skan z opcjami jak poniżej:
+`kubescape scan control C-0260 -v --include-namespaces task-2-namespace`
+
+Niezależnie od wykorzystanego narzędzia proszę załączyć odpowiedni zrzut ekranu jako dowód wykyycia braku izolacji sieci w naszym namespace.
+Proszę nazwać go XXXXXX_zad2_3.jpg, gdzie XXXXXX to nasz numer indeksu.
+
+## 4. Wprowadzenie izolacji sieci
+
+W ramach tego zadania, wciąż jako administrator systemu Kubernetes, wprowadzimy odpowiednią izolację sieci zgodnie z uwagami uzyskanymi od narzędzi skanujących.
+
+### 1. Zastosowanie izolacji dla bazy danych
+Tworzymy network policy dla bazy danych z wykorzystaniem poniższego pliku database-network-policy.yaml, izolując całkowicie ruch wyjściowy a ruch wejściowy ograniczając do aplikacji webowej.
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: database-network-policy
+  namespace: task-2-namespace
+spec:
+  podSelector:
+    matchLabels:
+      app: database-pod
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: web-app-pod
+      ports:
+        - protocol: TCP
+          port: 5432
+```
+
+### 2. Zastosowanie izolacji dla aplikacji webowej
+W przypadku aplikacji webowej dopuścimy każdy ruch wejściowy, ale ruch wyjściowy jedynie do bazy danych.
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: web-app-network-policy
+  namespace: task-2-namespace
+spec:
+  podSelector:
+    matchLabels:
+      app: web-app-pod
+  policyTypes:
+    - Egress
+    - Ingress
+  ingress:
+    - from: []
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: database-pod
+      ports:
+        - protocol: TCP
+          port: 5432
+```
+
+### 3. Powtórny skan
+Proszę powtórzyć skan (z punktu 3.2) a zrzut ekranu wynikowego skanu nazwać XXXXXX_zad2_4.jpg, gdzie XXXXXX to nasz numer indeksu.
+
+## 5. Powtórny atak na bazę danych
+
+W tej fazie zadania powracamy do roli atakującego i ponownie próbujemy wykonać atak na bazę danych.
+Proszę wykonać kroki analogiczne do punktu 2.
+Czy atak się powiódł? Dlaczego otrzymaliśmy taki rezultat? Proszę odpowiedzieć w 1-2 zdaniach i swoje wnioski spisać w pliku XXXXXX_zad2_wnioski.txt, gdzie XXXXXX to nasz numer indeksu.
+
+## 6. Zastosowanie domyślnej polityki sieciowej dla namespace
+
+### 1. Skan pod kątem domyślnej polityki sieciowej dla namespace
+
+Podobnie jak w przypadku firewalli, dobrą praktyką jest blokada wszelkiego ruchu sieciowego poza tym bezpośrednio zadeklarowanym jako dopuszczonym.
+W ten sposób pody w naszym namespace nie będą domyślnie wystawione na ataki, wynikające z niewystarczającej izolacji, opisane w ramach tego zadania.
+Możemy wprowadzić taką domyślną politykę odrzucania dla wszystkich podów w namespace. 
+W pierwszej kolejności jednak wykryjemy jej brak za pomocą odpowiedniego narzędzia.
+
+Dla przykładu może, ale nie musi, być to narzędzie kubeaudit, które instalujemy wykonując poniższe komendy:
+```bash
 curl -LO https://github.com/Shopify/kubeaudit/releases/download/v0.22.2/kubeaudit_0.22.2_linux_amd64.tar.gz
 tar -xvf kubeaudit_0.22.2_linux_amd64.tar.gz
 chmod +x kubeaudit
 mv kubeaudit /usr/local/bin/
-kubeaudit netpols -f task-2-namespace.yaml 
+```
 
+Następnie wykonujemy skan naszego namespace pod kątem braku domyślnej polityki `deny`.
+Dla narzędzie kubeaudit, przy założeniu, że definicja naszego namespace znajduje się w pliku `task-2-namespace.yaml`, jest to następująca komenda:
+`kubeaudit netpols -f task-2-namespace.yaml`.
 
-## 4. Wprowadzenie izolacji sieci
+Proszę wykonać zrzut ekranu prezentujący wynik takiego skanowania i nazwać go XXXXXX_zad2_6.jpg, gdzie XXXXXX to nasz numer indeksu.
 
-## 5. Powtórny atak na bazę danych
+### 2. Zastosowanie domyślnej polityki sieciowej dla namespace
+Proszę zmodyfikować zawartość pliku `task-2-namespace.yaml` na tę widoczną ponizej:
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: task-2-namespace
+
+---
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: task-2-namespace
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+```
+
+### 2. Powtórny skan
+Proszę ponownie wykonać skan naszego namespace pod kątem braku domyślnej polityki `deny`, analogicznie jak w punkcie 6.1.
+Proszę wykonać zrzut ekranu prezentujący wynik takiego skanowania i nazwać go XXXXXX_zad2_7.jpg, gdzie XXXXXX to nasz numer indeksu.
+
+## 7. Konsolidacja plików wynikowych
+Zrzuty ekranu oraz wnioski spakować w plik zip. [TODO: jak zbieramy?]
