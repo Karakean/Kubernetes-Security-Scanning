@@ -12,9 +12,12 @@ spec:
     - Egress
   ingress:
     - from:
-        - podSelector:
-            matchLabels:
-              app: web-app-pod
+      - namespaceSelector:
+          matchLabels:
+            networking/namespace: task-2-namespace
+        podSelector:
+          matchLabels:
+            app: web-app-pod
       ports:
         - protocol: TCP
           port: 5432

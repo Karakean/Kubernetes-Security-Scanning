@@ -630,6 +630,8 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: task-2-namespace
+  labels:
+    networking/namespace: task-2-namespace
 ```
 Zasób tworzymy poprzez wykonanie komendy
 `kubectl apply -f task-2-namespace.yaml`
@@ -786,14 +788,16 @@ spec:
 Poprzez wykonanie komendy `kubectl get pods -o wide -n task-2-namespace` uzyskujemy adres IP poda z bazą danych. W rzeczywistym scenariuszu ataku adres ten moglibyśmy uzyskać np. poprzez skanowanie sieci.
 
 ### 3. Wykonanie ataku
-Wykonujemy komendę
+Na poda pełniącego funkcję naszego środowiska do ataku dostajemy się z wykorzystaniem komendy `kubectl exec -it attacker-pod -n task-2-namespace -- /bin/sh`.
+Po pomyślnym wejściu do poda mozna sprawdzić łączność z bazą danych poleceniem `ping <ADRES_IP_BAZY_DANYCH>`.
+W celu połączenia z bazą danych wykonujemy komendę:
 `psql -h <ADRES_IP_BAZY_DANYCH> -p 5432 -U <NAZWA_UŻYTKOWNIKA> -d database`
-gdzie w `<ADRES_IP_BAZY_DANYCH>` wprowadzamy uzyskany adres IP poda bazy danych, zaś w `<NAZWA_UŻYTKOWNIKA>` oraz haśle użyte wcześniej przy wdrażaniu sekretne wartości, które ze względu na prostotę nie byłyby zbyt skomplikowane do odgadnięcia dla rzeczywistego atakującego.
+gdzie w `<ADRES_IP_BAZY_DANYCH>` wprowadzamy uzyskany adres IP poda bazy danych, zaś w polu `<NAZWA_UŻYTKOWNIKA>` oraz haśle wprowadzamy użyte wcześniej przy wdrażaniu sekretne wartości, które ze względu na prostotę nie byłyby zbyt skomplikowane do odgadnięcia dla rzeczywistego atakującego.
 
 Po podłączeniu się do bazy wykonujemy komendę:
 `SELECT * FROM users;`
 Wykonujemy zrzut ekranu i nazywamy go XXXXXX_zad2_2.jpg, gdzie XXXXXX to nasz numer indeksu.
-Po wykonaniu proszę usunąć poda attacker-pod komendą `kubectl delete pod <NAZWA_PODA> -n <NAZWA_NAMESPACE>`.
+Po wykonaniu proszę wyjść z poda komendą exit a następnie usunąć go komendą `kubectl delete pod <NAZWA_PODA> -n <NAZWA_NAMESPACE>`.
 
 ## 3. Skan systemu
 
@@ -810,7 +814,7 @@ Dla przykładu może, ale nie musi, być to narzędzie Kubescape, które instalu
 W celu uzyskania dokładniejszych informacji odnośnie polityk sieciowych w naszym namespace z narzędziem Kubescape wykonujemy skan z opcjami jak poniżej:
 `kubescape scan control C-0260 -v --include-namespaces task-2-namespace`
 
-Niezależnie od wykorzystanego narzędzia proszę załączyć odpowiedni zrzut ekranu jako dowód wykyycia braku izolacji sieci w naszym namespace.
+Niezależnie od wykorzystanego narzędzia proszę załączyć odpowiedni zrzut ekranu jako dowód wykrycia braku izolacji sieci w naszym namespace.
 Proszę nazwać go XXXXXX_zad2_3.jpg, gdzie XXXXXX to nasz numer indeksu.
 
 ## 4. Wprowadzenie izolacji sieci
@@ -834,16 +838,19 @@ spec:
     - Egress
   ingress:
     - from:
-        - podSelector:
-            matchLabels:
-              app: web-app-pod
+      - namespaceSelector:
+          matchLabels:
+            networking/namespace: task-2-namespace
+        podSelector:
+          matchLabels:
+            app: web-app-pod
       ports:
         - protocol: TCP
           port: 5432
 ```
 
 ### 2. Zastosowanie izolacji dla aplikacji webowej
-W przypadku aplikacji webowej dopuścimy każdy ruch wejściowy, ale ruch wyjściowy jedynie do bazy danych.
+W przypadku aplikacji webowej dopuścimy każdy ruch wejściowy, ale ruch wyjściowy jedynie do bazy danych oraz DNS (port 53).
 ```yaml
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -859,15 +866,28 @@ spec:
     - Ingress
   ingress:
     - from: []
+      ports:
+        - protocol: TCP
+          port: 3000
   egress:
     - to:
-        - podSelector:
-            matchLabels:
-              app: database-pod
+      - namespaceSelector:
+          matchLabels:
+            networking/namespace: task-2-namespace
+        podSelector:
+          matchLabels:
+            app: database-pod
       ports:
         - protocol: TCP
           port: 5432
+    - to:
+      ports:
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53
 ```
+Proszę ponownie w przeglądarce wpisać adres `http://localhost:XX31`, gdzie `XX` to dwie ostatnie cyfry naszego numeru indeksu i upewnić się, że proces logowania nadal działa.
 
 ### 3. Powtórny skan
 Proszę powtórzyć skan (z punktu 3.2) a zrzut ekranu wynikowego skanu nazwać XXXXXX_zad2_4.jpg, gdzie XXXXXX to nasz numer indeksu.
@@ -908,6 +928,8 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: task-2-namespace
+  labels:
+    networking/namespace: task-2-namespace
 
 ---
 
@@ -922,6 +944,7 @@ spec:
     - Ingress
     - Egress
 ```
+oraz zastosować komendą `kubectl apply -f`
 
 ### 2. Powtórny skan
 Proszę ponownie wykonać skan naszego namespace pod kątem braku domyślnej polityki `deny`, analogicznie jak w punkcie 6.1.

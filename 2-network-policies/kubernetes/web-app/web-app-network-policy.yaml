@@ -11,12 +11,24 @@ spec:
     - Egress
     - Ingress
   ingress:
-    - from: []
+    - from:
+      ports:
+        - protocol: TCP
+          port: 3000
   egress:
     - to:
-        - podSelector:
-            matchLabels:
-              app: database-pod
+      - namespaceSelector:
+          matchLabels:
+            networking/namespace: task-2-namespace
+        podSelector:
+          matchLabels:
+            app: database-pod
       ports:
         - protocol: TCP
           port: 5432
+    - to:
+      ports:
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53
