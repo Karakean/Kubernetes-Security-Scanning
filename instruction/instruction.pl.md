@@ -161,9 +161,7 @@ Do inicjalizacji klastra potrzebny jest podstawowy plik konfiguracyjny, w który
 
 1. Utwórz plik konfiguracyjny `kubeadm-config.yaml` w katalogu `/etc/kubernetes`:
 
-**Uwaga: adres IP `10.0.2.15` należy podmienić (w obydwu miejscach) na adres swojego interfejsu sieciowego.**
-
-[TODO: sprawdzic ifconfig]
+**Uwaga: adres IP `10.0.2.15` należy podmienić (w obydwu miejscach) na adres swojego interfejsu sieciowego. Adres możemy uzyskać poleceniem `ifconfig`**
 
 ```bash
 mkdir -p /etc/kubernetes
@@ -220,7 +218,7 @@ DNS.1 = kubernetes
 DNS.2 = kubernetes.default
 DNS.3 = kubernetes.default.svc
 DNS.4 = kubernetes.default.svc.cluster.local
-IP.1 = 10.245.0.1 # [TODO: co to za adres?]
+IP.1 = 10.245.0.1
 IP.2 = 10.0.2.15 
 EOF
 ```
@@ -236,17 +234,7 @@ openssl genrsa -out ca.key 4096
 ```bash
 openssl req -new -x509 -days 3650 -key ca.key -out ca.crt -config ca.cnf -extensions v3_ca
 ```
-[TODO: You are about to be asked to enter information that will be incorporated
-into your certificate request.
-What you are about to enter is what is called a Distinguished Name or a DN.
-There are quite a few fields but you can leave some blank
-For some fields there will be a default value,
-If you enter '.', the field will be left blank.
------
-k8s_ca [Kubernetes]:.
-Error: No objects specified in config file
-Error making certificate request
-]
+Wybieramy domyślne wartości wciskając enter bez wpisywania żadnych znaków.
 
 4. Utwórz plik zawierający konfigurację certyfikatu kubeleta:
 
@@ -283,15 +271,13 @@ EOF
 ```bash
 openssl genrsa -out kubelet.key 2048
 ```
-[TODO: czemu tu krotszy?]
 
 6. Po wygenerowaniu klucza prywatnego dla kubeleta, stwórz żądanie certyfikatu (CSR):
 
 ```bash
 openssl req -new -key kubelet.key -out kubelet.csr -config kubelet.cnf
 ```
-
-[TODO: ponownie; puste wartosci czy co?]
+Ponownie wybieramy domyślne wartości wciskając enter bez wprowadzania żadnych znaków.
 
 7. Na koniec, podpisz żądanie certyfikatu (`kubelet.csr`) certyfikatem CA `ca.crt`, aby wygenerować certyfikat dla kubeleta:
 
@@ -458,7 +444,7 @@ Katalog `/var/lib/etcd` powinien posiadać dostęp ograniczony do użytkownika e
 Argument `--kubelet-certificate-authority` w konfiguracji apiserwera powinien wskazywać na plik certyfikatu autorytetu (CA). Zapewnia to, że apiserwer używa tylko certyfikatów podpisanych przez zaufany CA.
 
 **Działanie:**  
-W pliku konfiguracyjnym apiserwera ( `/etc/kubernetes/manifests/kube-apiserver.yaml`) upewnij się, że istnieje linia: `--kubelet-certificate-authority=/etc/kubernetes/pki/ca.crt`. [TODO w containers command]
+W pliku konfiguracyjnym apiserwera ( `/etc/kubernetes/manifests/kube-apiserver.yaml`) upewnij się, że w bloku command istnieje linia: `--kubelet-certificate-authority=/etc/kubernetes/pki/ca.crt`.
 
 Zrestartuj kubelet:
 
@@ -475,7 +461,6 @@ W pliku konfiguracyjnym kubeleta (`/var/lib/kubelet/config.yaml`) dopisz następ
 tlsCertFile: /etc/kubernetes/pki/kubelet.crt
 tlsPrivateKeyFile: /etc/kubernetes/pki/kubelet.key
 ```
-[TODO: w jakim bloku?]
 Zrestartuj kubelet: `systemctl restart kubelet`.
 
 **Rezultat:**  
@@ -551,7 +536,7 @@ Kubernetes powinien rejestrować zdarzenia audytu w określonym pliku, aby zapew
 Utwórz katalog na logi kubernetesa:  
 ```bash
 mkdir -p /var/log/kubernetes
-touch /var/log/kubernetes/audit.log` [TODO: usunac to]
+touch /var/log/kubernetes/audit.log
 chmod 644 /var/log/kubernetes/audit.log
 ```
 Dodaj następującą opcję do pliku konfiguracyjnego apiserwera: `--audit-log-path=/var/log/kubernetes/audit.log`
@@ -595,9 +580,7 @@ Argument ten określa maksymalny rozmiar plików audytowych w megabajtach, aby k
 **Działanie:**  
 Dodaj do pliku konfiguracyjnego apiserwera: `--audit-log-maxsize=100`
 
-Zrestartuj API server.
-
-[TODO: JAK? kubectl delete kube-apiserver-debian?]
+Zrestartuj kubelet oraz API server komendą `systemctl restart kubelet`.
 
 ---
 
@@ -617,6 +600,7 @@ Zadanie podzielone zostało na następujące fazy:
 3. Wcielisz się w rolę administratora systemu Kubernetes i z wykorzystaniem odpowiednich narzędzi wykryjesz brak odpowiedniej izolacji sieci.
 4. Wciąż jako administrator wprowadzisz odpowiednią izolację sieci z wykorzystaniem Network Policies.
 5. Ponownie wcielisz się w rolę atakującego, aby powtórzyć atak.
+6. Powrócisz do roli administratora aby wykryć, z wykorzystaniem odpowiedniego narzędzia, brak domyślnej polityki odrzucającej w ramach namespace. Wprowadzisz taką politykę.
 
 ## 1. Deployment aplikacji webowej oraz bazy danych
 
