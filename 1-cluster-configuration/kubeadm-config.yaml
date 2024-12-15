@@ -1,0 +1,10 @@
+apiVersion: "kubeadm.k8s.io/v1beta4"
+kind: "ClusterConfiguration"
+kubernetesVersion: "v1.31.3"
+controlPlaneEndpoint: "10.0.2.15"
+networking:
+  podSubnet: "10.244.0.0/16"
+  serviceSubnet: "10.245.0.0/16"
+apiServer:
+  certSANs:
+    - "10.0.2.15"

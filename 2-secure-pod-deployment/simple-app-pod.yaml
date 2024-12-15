@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: simple-app-pod
+  labels:
+    app: simple-app
+spec:
+  containers:
+  - name: simple-app
+    image: jankejc/simple-app:latest 
+    volumeMounts:
+    - name: credentials-volume
+      mountPath: /data               
+    ports:
+    - containerPort: 8080     
+    securityContext:
+      runAsNonRoot: yes
+      runAsUser: 1001   
+      allowPrivilegeEscalation: false     
+  volumes:
+  - name: credentials-volume
+    persistentVolumeClaim:
+      claimName: credentials-pvc

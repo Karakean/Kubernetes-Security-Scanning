@@ -1,3 +1,112 @@
+# Wstęp teoretyczny
+
+## Czym jest Kubernetes?
+Kubernetes to platforma umożliwiająca zarządzanie kontenerami rozproszonymi po wielu serwerach, automatyzująca jednocześnie zarządzanie, skalowanie i wdrażanie aplikacji skonteneryzowanych.
+
+## Architektura systemu Kubernetes
+
+### Klaster Kubernetes
+Klaster Kubernetes to zbiór zasobów, które współpracują w celu uruchamiania i zarządzania aplikacjami kontenerowymi. Składa się z:
+
+1. **Węzłów Control Plane**:
+   - Odpowiadają za zarządzanie klastrem i jego konfiguracją.
+   - Kluczowe komponenty węzłów Control Plane:
+     - **Kube-API Server**: Obsługuje żądania API od użytkowników i innych komponentów klastra. Jest centralnym punktem komunikacji.
+     - **Etcd**: Rozproszona baza danych klucz-wartość, w której przechowywany jest stan klastra (np. informacje o podach, konfiguracjach).
+     - **Controller Manager**: Zawiera różne kontrolery, takie jak kontroler replikacji, który zapewnia odpowiednią liczbę podów.
+     - **Kube-Scheduler**: Decyduje, na którym węźle roboczym uruchomić nowe pody, biorąc pod uwagę dostępne zasoby i wymagania aplikacji.
+   - Zdarza się, że w środowiskach produkcyjnych występuje więcej niż jeden węzeł Control Plane, aby zapewnić wysoką dostępność (High Availability).
+
+2. **Węzłów roboczych (Worker Nodes)**:
+   - Są odpowiedzialne za uruchamianie aplikacji kontenerowych.
+   - Kluczowe komponenty węzłów roboczych:
+     - **Kubelet**: Agenta, który zarządza podami na węźle i komunikuje się z Control Plane.
+     - **Container Runtime**: Narzędzie odpowiedzialne za uruchamianie i zarządzanie kontenerami (np. containerd, CRI-O).
+     - **Kube-Proxy**: Odpowiada za implementację reguł sieciowych, umożliwiając komunikację między podami i usługami.
+
+**Uwaga! W ramach laboratorium ze względu na sprzętowo-zasobowe ograniczenia stosujemy konfigurację jednowęzłową; w rzeczywistości powinny być przynajmniej dwa węzły; jeden Control Plane i jeden Worker Node.** 
+
+### Kluczowe obiekty Kubernetes
+- **Pody**: Najmniejsza jednostka uruchomieniowa w Kubernetes, która może zawierać jeden lub więcej kontenerów współdzielących sieć i przestrzeń dyskową.
+- **ReplicaSets**: Zarządza liczbą replik podów, zapewniając ich określoną liczbę w klastrze.
+- **Deploymenty**: Ułatwiają zarządzanie aplikacjami, umożliwiając ich deklaratywne wdrażanie, aktualizacje i rollbacki.
+- **Usługi (Services)**: Abstrakcja nad podami, zapewniająca stały punkt dostępu do aplikacji, niezależnie od zmian w liczbie podów.
+- **Namespace**: Logiczna izolacja zasobów w klastrze, umożliwiająca organizację aplikacji oraz zarządzanie uprawnieniami.
+
+---
+
+## Narzędzia do analizy bezpieczeństwa Kubernetes
+
+### kube-bench
+- **Typ analizy**: Dynamiczna.
+- **Benchmarki**: CIS Kubernetes Benchmark.
+- **Opis**: Analizuje konfigurację Kubernetes pod kątem zgodności z wytycznymi bezpieczeństwa. Ocena obejmuje kontrolę Control Plane, węzłów roboczych i zasobów klastrowych.
+
+### kubeaudit
+- **Typ analizy**: Statyczna i dynamiczna.
+- **Opis**: Wykrywa luki w konfiguracji zasobów Kubernetes, takie jak brak Network Policies, nieprawidłowe konfiguracje RBAC czy brak Security Context.
+
+### kube-linter
+- **Typ analizy**: Statyczna.
+- **Opis**: Analizuje pliki YAML oraz Helm Charty pod kątem błędów i nieoptymalnych konfiguracji. Ocenia m.in. brak limitów zasobów, nieodpowiednie ustawienia bezpieczeństwa oraz nadmiarowe uprawnienia.
+
+### kubescape
+- **Typ analizy**: Statyczna i dynamiczna.
+- **Benchmarki**: NSA-CISA Kubernetes Hardening Guidance, MITRE ATT&CK, CIS Kubernetes Benchmark.
+- **Opis**: Kompleksowo skanuje klaster pod kątem zgodności z wytycznymi bezpieczeństwa, identyfikuje potencjalne zagrożenia i generuje szczegółowe raporty.
+
+### Polaris
+- **Typ analizy**: Statyczna i dynamiczna.
+- **Opis**: Analizuje pliki YAML oraz wdrożone zasoby Kubernetes w kontekście dobrych praktyk bezpieczeństwa, takich jak właściwa konfiguracja Security Context czy limity zasobów.
+
+---
+
+## PersistentVolume (PV) i PersistentVolumeClaim (PVC)
+**PersistentVolume (PV)** to zasób Kubernetes reprezentujący zewnętrzne miejsce przechowywania danych, takie jak dysk lokalny lub system plików sieciowych. **PersistentVolumeClaim (PVC)** to żądanie użytkownika na określoną przestrzeń dyskową, które jest powiązane z PV, jeśli spełnia jego wymagania.
+
+---
+
+## Security Context
+Security Context definiuje specyficzne ustawienia bezpieczeństwa dla podów i kontenerów, m.in.:
+- Uruchamianie procesów jako określony użytkownik.
+- Wymuszanie uruchamiania procesów jako użytkownik bez uprawnień roota.
+- Blokowanie możliwości eskalacji uprawnień w kontenerach.
+
+Poprawna konfiguracja Security Context zmniejsza ryzyko ataków typu privilege escalation.
+
+---
+
+## Network Policies
+
+### Domyślne zachowanie
+Domyślnie Kubernetes nie stosuje izolacji sieciowej, co oznacza, że wszystkie pody w klastrze mogą komunikować się ze sobą bez ograniczeń. Deklarowanie Network Policies zmienia to zachowanie:
+- Zadeklarowanie reguł typu Ingress lub Egress wprowadza domyślne odrzucenie ruchu, który nie jest jawnie dozwolony.
+- Brak zadeklarowanych reguł oznacza brak ograniczeń w komunikacji sieciowej.
+
+### Kluczowe elementy Network Policies
+1. **PodSelector**: Wskazuje, które pody są objęte regułami.
+2. **NamespaceSelector**: Umożliwia stosowanie reguł dla podów w określonych namespace'ach.
+3. **PolicyTypes**:
+   - Ingress (ruch przychodzący),
+   - Egress (ruch wychodzący).
+4. **Ports**: Określa dozwolone porty i protokoły.
+
+Network Policies są kluczowe dla zapewnienia izolacji między aplikacjami i minimalizacji ryzyka ataków sieciowych.
+
+---
+
+## Role-Based Access Control (RBAC)
+
+RBAC to mechanizm kontroli dostępu oparty na przypisywaniu ról użytkownikom lub aplikacjom w Kubernetes. 
+
+### Kluczowe elementy RBAC
+- **Role**: Uprawnienia przypisane w obrębie jednego namespace.
+- **ClusterRole**: Uprawnienia obejmujące cały klaster.
+- **RoleBinding/ClusterRoleBinding**: Przypisuje Role lub ClusterRole użytkownikom, grupom lub kontom serwisowym.
+
+RBAC pozwala na precyzyjne zarządzanie dostępem do zasobów w klastrze, minimalizując ryzyko nieautoryzowanego dostępu i eskalacji uprawnień.
+
+
 # Zadanie 0. - przygotowanie środowiska laboratoryjnego.
 
 ### 1. Wymagania
@@ -26,14 +135,26 @@ sudo apt-get install -y virtualbox-7.0
 
 Pracujemy na użytkowniku root. Hasło to `kti`. Na maszynie znajdują się preinstalowane narzędzia przydatne min. do debugowania.
 
-W celu nawiązania połączenia ssh pomiędzy hostem, a maszyną zalecamy stosowanie się do poradnika znajdującego się pod linkiem (https://dev.to/developertharun/easy-way-to-ssh-into-virtualbox-machine-any-os-just-x-steps-5d9i).
+W celu nawiązania połączenia ssh pomiędzy hostem, a maszyną należy wejść w ustawieniach VirtualBoxa w sekcję Network/Adapter z NAT'em/Advanced/Port Forwarding i dodajesz nowy wpis z konkretnymi wartościami w odpowiednich polach:
+- name: ssh,
+- protocol: TCP,
+- Host IP: (zostaje puste),
+- Host Port: XX22, gdzie XX to dwie ostatnie cyfry Twojego numeru indeksu
+- Guest IP: (zostaje puste),
+- Guest Port: 22
+
+Po konfiguracji w celu wejścia na maszynę poprzez SSH należy użyć komendy:
+`ssh -p XX22 localhost`, gdzie XX to dwie ostatnie cyfry Twojego numeru indeksu 
 
 **Uwaga**: w udostępnionym przez nas środowisku zdarza się problem z nieprawidłowo działającym serwerem ssh. W celu naprawy należy przeinstalować pakiet przy użyciu następującej komendy:
 ```bash
 apt --reinstall install openssh-server
 ```
 
-# Zadanie 1. - prawidłowa inicjalizacja klastra kubernetes w oparciu o audyt control plane'a.
+### 3. Agregowanie rezultatów wykonanych zadań
+W ramach poszczególnych zadań będzie należało zebrać odpowiednie efekty wykonanej pracy w postaci np. plików, zrzutów ekranu czy wniosków w formie tekstowej. Prosimy aby pliki te zorganizować w cztery foldery (zad1, zad2, zad3, zad4) i do każdego z folderów umieszczać rezultaty odpowiadającego mu zadania. Całość następnie należy zagregować do jednego folderu o nazwie odpowiadającej Twojemu numerowi indeksu, po czym skompresować do formatu zip. Dla przykładu; student o numerze indeksu 123456 powinien przesłać plik 123456.zip w którym znajdować się będzie folder 123456 z czterema podfolderami (zad1, zad2, zad3, zad4), a w każdym podfolderze pliki potwierdzające wykonanie zadania.
+
+# Zadanie 1 - prawidłowa inicjalizacja klastra kubernetes w oparciu o audyt control plane'a.
 
 Zadanie polega na przygotowaniu środowiska pod klaster kubernetes, a następnie inicjalizację i wstępną konfigurację control plane'a zgodnie z zaleceniami narzędzia `kube-bench`.
 Zadanie podzielone zostało na następujące fazy:
@@ -592,7 +713,396 @@ Za wszelkie aktywności nadobowiązkowe (przykładowo: przeprowadzenie testów m
 
 ---
 
-# Zadanie 3. - izolacja sieci w systemie Kubernetes
+# Zadanie 2 - bezpieczne wdrażanie podów
+
+## Pomoc
+Zanim zaczniemy, gdyby były jakieś problemy można śmiało do mnie pisać: `Jan Kornacki` na FB, mail: `s180424@student.pg.edu.pl`.
+
+## Motywacja
+Wyobraź sobie, że brat (wiedząc, że znasz się trochę na rozwiązaniach chmurowych) zaczepił Cię na świątecznym spotkaniu i opowiedział swój genialny pomysł na nowy portal społecznościowy. Zapytał, czy byłbyś w stanie stworzyć dla niego jakieś środowisko deweloperskie, na którym koledzy programiści mogliby zbudować dany portal. Mimo iż nie wierzysz za bardzo w sens projektu, to nie jesteś zbyt asertywny i zgadzasz się pomóc - w końcu to rodzina. Lubisz tę osobę, więc chcesz zrobić to dobrze, a po kursie *Bezpieczeństwo i niezawodność systemów chmurowych* wiesz już na czym się skupić, żeby pierwszy lepszy programista nie zrobił czegoś czego będzie się potem żałowało.   
+
+## Realizacja
+Masz pomysł, żeby oprzeć się na Kubernetesie. To co masz zrobić to stworzyć prosty serwer www z gotowymi polami logowania. Dalszym rozwojem zajmą się programiści. Na szczęście masz już gotową i skonfigurowaną maszynę z poprzedniego genialnego projektu członka rodziny, tak więc zostało tylko:
+1. znaleźć jakiś odpowiadający obraz kontenera,
+2. stworzyć wolumin (PersistentVolume), w którym będą zapisane loginy i hasła (w formie jawnej do celów deweloperskich),
+3. stworzyć odpowiedni prośbę o wolumin (PersistentVolumeClaim)
+4. zebrać wszystko do pliku konfigurującego pod'a,
+5. uruchomić i przetestować.
+
+### Obraz kontenera
+Podczas przeszukiwania Docker Hub w oko wpadł Ci obraz `simple-app:latest` użytkownika `jankejc`. Z opisu wynika, że całkowicie odpowiadać będzie Twoim potrzebom.
+
+### Loginy i hasła - PersistentVolume
+1. Tak jak ostatnio (poprzednie zadanie) łączysz się z swoją maszyną wirtualną (Debian/VirtualBox) po ssh.
+
+2. W obecnym folderze tworzysz folder `genius-project-AAAAAA`, gdzie `AAAAAA` to Twój numer indeksu PG (taki masz rytuał). Np. `mkdir genius-project-AAAAAA`.
+
+3. Następnie wchodzisz do tego folderu i tworzysz jeszcze jeden podfolder który udostępnisz pod'owi, w którym będzie plik z loginami i hasłami do portalu. 
+```bash
+cd genius-project-AAAAAA
+mkdir shared
+```
+
+4. Następnie wchodzisz do tego folderu i tworzysz powyższy plik. UWAGA! Obraz `simple-app` wymaga, aby plik nazywał się `credentials.txt`. Ustawiasz uprawnienia tak, aby plik mógł być odczytany (choćby przez aplikację), ale nie nadpisany przez nikogo oprócz root'a. Brat chce mieć ścisłą kontrolę nad kontami tworzonymi w ramach portalu. Dodajesz również dwóch użytkowników, dzięki którym będziesz mógł testować działanie aplikacji.
+```bash
+cd shared
+touch credentials.txt
+chmod 744 credentials.txt
+echo "brat, ilovecats" > credentials.txt
+echo "dev, kti" >> credentials.txt
+```
+
+5. W folderze `genius-project-AAAAAA` tworzysz plik, który będzie służył jako plik konfigurujący `PersistentVolume`. 
+```bash
+cd ..
+touch credentials-pv.yaml
+```
+   
+6. Otwierasz ten plik ulubionym edytorem i konfigurujesz go tak, aby odnosił się do podfolderu do udostępnienia. Np. `nano credentials-pv.yaml`. Przykładową konfigurację podyktował Ci chat. Po dostosowaniu jej do Twoich potrzeb, powinna wyglądać mniej więcej tak:
+```yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: credentials-pv
+spec:
+  capacity:
+    storage: 1Mi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /root/genius-project-AAAAAA/shared
+    type: Directory
+```
+### PersistentVolumeClaim
+1. Potrzebujesz również `PersistentVolumeClaim`. Np. `touch credentials-pvc.yaml`.
+
+2. Konfiguracja powinna wyglądać następująco: 
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: credentials-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Mi
+```
+*Aby zapisać plik w `nano` wystarczy naciśnąć Ctrl+X, a potem Y.*
+
+
+### Konfiguracja pod'a
+Na koniec tworzysz plik konfiguracyjny pod'a (np. `touch simple-app-pod.yaml`). A następnie odpowiednio go modyfikujesz:
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: simple-app-pod
+  labels:
+    app: simple-app
+spec:
+  containers:
+  - name: simple-app
+    image: jankejc/simple-app:latest # znaleziony wcześniej obraz
+    volumeMounts:
+    - name: credentials-volume
+      mountPath: /data               # UWAGA! simple-app wymaga, aby plik uwierzytelniający był w tym folderze 
+    ports:
+    - containerPort: 8080            # dzięki temu będziesz mógł przetestować swój prosty serwer www
+  volumes:
+  - name: credentials-volume
+    persistentVolumeClaim:
+      claimName: credentials-pvc     # nazwa stworzonego wcześniej pvc
+```
+
+### Uruchomienie
+1. Aby móc przetestować serwer tworzysz jeszcze serwis `NodePort`, który będzie udostępniał ruch poza klaster.
+```bash
+touch simple-app-service.yaml
+nano simple-app-service.yaml
+```
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: simple-app-service
+spec:
+  type: NodePort
+  ports:
+    - port: 8080        # port simple-app
+      targetPort: 8080
+      nodePort: 30100   # port na węźle kubernetes
+  selector:
+    app: simple-app
+```
+
+2. W tym momencie, gdybyś miał maszynę wirtualną z dostępem do GUI to mógłbyś łatwo testować swój serwer w przeglądarce na porcie `30100`. Niestety masz Debiana CLI. Jest na to sposób. Wyłączasz swoją maszynę wirtualną (np. `sudo shutdown now`). Gdy maszyna się całkowicie wyłączy wchodzisz w jej ustawienia w VirtualBox'ie. Tam wchodzisz w Network/Adapter z NAT'em/Advanced/Port Forwarding i dodajesz nowy wpis z konkretnymi wartościami w odpowiednich polach:
+- name: www,
+- protocol: TCP,
+- Host IP: (zostaje puste),
+- Host Port: 8080,
+- Guest IP: (zostaje puste),
+- Guest Port: 30100.
+
+Dzięki temu możesz testować swoją aplikację na urządzeniu w przeglądarce urządzenia, na którym uruchomiona jest maszyna wirtualna.
+
+3. Wszystko powinno być gotowe, więc włączasz maszynę wirtualną, logujesz się do niej po ssh.
+
+4. Przypomniałeś sobie, że domyślnie nie można uruchamiać podów na tym samym nodzie, na którym jest control plane. To ograniczenie - `taint` - można znieść jednorazowo następującym poleceniem:  
+```bash
+kubectl taint node debian node-role.kubernetes.io/control-plane=:NoSchedule-
+```
+
+> **SCREEN 1**
+> 
+> W folderze `genius-project-AAAAAA` wykonaj polecenie `ls` i zrób zrzut ekranu tak, aby widoczna była lista utworzonych wcześniej plików w aktualnym folderze. Niech screen nazywa się `genialny_projekt_1.png`
+
+5. Z folderu `genius-project-AAAAAA` uruchamiasz serwis, przygotowujesz `PersistentVolume` i `PersistentVolumeClaim`. Na koniec uruchamiasz również samą aplikację.
+```bash
+kubectl apply -f simple-app-service.yaml
+kubectl apply -f credentials-pv.yaml
+kubectl apply -f credentials-pvc.yaml
+kubectl apply -f simple-app-pod.yaml
+```
+
+6. Aby upewnić się, że wszystko zostało uruchomione wykonujesz serię komend.
+```bash
+kubectl get pods -A
+kubectl logs [NAZWA_PODU]
+kubectl get services
+kubectl get pv
+kubectl get pvc
+```
+UWAGA! `kubectl get pods -A` powinno być sprawdzane dopóki pod nie będzie `Running`.
+
+> **SCREEN 2**
+> 
+> Zrób zrzut ekranu tak, aby widoczne były wyniki wywołanych komend. Nazwij go `genialny_projekt_2.png`. Jeśli nie zmieści się na jednym zrzucie, to proszę nazywać je np. `genialny_projekt_2_1.png`,  `genialny_projekt_2_2.png`.
+
+7. Na maszynie, na której jest uruchomiona maszyna wirtualna wchodzisz w przeglądarkę i wpisujesz `localhost:8080`. Oczom ukazuje Ci się przepiękna strona, na której testujesz możliwość logowania. Logujesz się tak, jak gdybyś był deweloperem -> `login: dev`, `pass: kti`. Pojawia się komunikat powitalny z wyszczególnioną nazwą użytkownika.
+
+> **SCREEN 3**
+> 
+> Zrób zrzut ekranu tak, który ukazuje powyższy widok. Nazwij go `genialny_projekt_3.png`.
+
+## Sprawdzenie bezpieczeństwa
+Przed oddaniem decydujesz się jeszcze na sprawdzenie czy Twoja konfiguracja pod'a została przeprowadzona zgodnie ze sztuką. W tym celu używasz jednego z wielu narzędzi do skanowania zasobów jakim jest np. `Polaris` (choć inne pewnie też by się sprawdziły). W tym celu:
+1. pobierasz narzędzie,
+2. skanujesz pod'a,
+3. sprawdzasz w logach czy nie ma nic niepokojącego i...
+4. cieszysz się, że nie oddałeś środowiska za szybko...
+
+### Pobranie narzędzia
+Polaris ma też wersję graficzną, ale jako, że korzystając z CLI czujesz się bardziej profesjonalnie, to zadowalasz się wersją tekstową. Pobierasz program na maszynie wirtualnej.
+```bash 
+wget https://github.com/FairwindsOps/polaris/releases/download/9.6.0/polaris_linux_amd64.tar.gz
+```
+
+### Skanowanie poda
+1. Wykorzystujesz Polarisa do przeskanowania naszego poda. Poniższą komendę wykonujesz w folderze `genius-project-AAAAAA`.
+```bash
+polaris audit --audit-path simple-app-pod.yaml
+```
+
+2. Obserwujesz zdecydowanie za dużo tekstu, żeby go łatwo przyswoić, ale się nie poddajesz. Chat podpowiada Ci, że istnieje parser `jq`, który może trochę pomóc w odczycie. Instalujesz go.
+```bash
+sudo apt-get install jq
+```
+
+3. W tym momencie interesują Cię tylko wiadomości związane z bezpieczeństwem (`Security`). Po chwili siłowania się z chatem dostajesz to czego chcesz.
+```bash
+polaris audit --audit-path simple-app-pod.yaml | jq '.Results[].PodResult.ContainerResults[].Results | with_entries(select(.value.Success == false and .value.Category == "Security"))'
+```
+
+> **SCREEN 4**
+> 
+> Zrób zrzut ekranu, który ukazuje wynik powyższego polecenia. Nazwij go `genialny_projekt_4.png`.
+
+### Podatność (`root login`)
+1. No i wyszło szydło z worka... `runAsNonRoot -> false` oznacza, że nawet jeśli wcześniej ustawiłeś wartości uprawnień na `744` to prawdopodobnie zwykły użytkownik będzie miał możliwość nadpisania pliku, ponieważ kontener w danym podzie uruchamia się z uprawnieniami `root'a`.
+
+2. Wcielając się w nieuczciwego programistę postanawiasz sprawdzić powyższą podatność. Wchodzisz na pod'a:
+```bash
+kubectl exec -it simple-app-pod -- /bin/sh
+```
+
+3. Próbujesz nadpisać plik z hasłami, który znajduje się w zamontowanym folderze `/data`. UWAGA! Należy podać komendę dokładnie jak poniżej, ponieważ środowisko jest dość wrażliwe i nie aż tak responsywne (choćby brak dopełnień tabulatorem).
+```bash
+nano /data/credentials.txt
+```
+
+4. Następnie próbujesz dopisać coś do pliku oraz zapisać (`AAAAAA` to numer indeksu).
+```bash
+...
+AAAAAA, vuln
+```
+
+5. Wyświetlasz plik i okazuje się, że dopisanie przebiegło pomyślnie, to źle...
+```bash
+cat /data/credentials.txt
+```
+
+> **SCREEN 5**
+> 
+> Zrób zrzut ekranu, który ukazuje wynik powyższego polecenia. Nazwij go `genialny_projekt_5.png`.
+
+6. Żeby uratować sytuację zmieniasz konfigurację poda dodając odpowiedni wpis, który uruchamia kontener jako zwykły użytkownik. Edytujesz plik `simple-app-pod.yaml`:
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: simple-app-pod
+  labels:
+    app: simple-app
+spec:
+  containers:
+  - name: simple-app
+    image: jankejc/simple-app:latest 
+    volumeMounts:
+    - name: credentials-volume
+      mountPath: /data               
+    ports:
+    - containerPort: 8080    
+    securityContext:      # dodatkowe linijki
+      runAsNonRoot: yes   #
+      runAsUser: 1001     #  
+  volumes:
+  - name: credentials-volume
+    persistentVolumeClaim:
+      claimName: credentials-pvc     
+```
+
+7. Skanujesz Polarisem, aby sprawdzić czy to rozwiązuje problem:
+```bash
+polaris audit --audit-path simple-app-pod.yaml | jq '.Results[].PodResult.ContainerResults[].Results | with_entries(select(.value.Success == false and .value.Category == "Security"))'
+```
+
+8. Nie ma już komunikatu o powyższej podatności, więc wprowadzasz zmiany i czekasz aż pod będzie `Running`:
+```bash
+kubectl delete pod simple-app-pod
+kubectl apply -f simple-app-pod.yaml
+kubectl get pods -A
+```
+
+9. Ponownie wchodzisz na pod'a i upewniasz się, że nie możesz nic dopisać do pliku.
+```bash
+kubectl exec -it simple-app-pod -- /bin/sh
+nano /data/credentials.txt
+```
+
+10.  Super, nie da się, ale co w takim momencie robi każdy przeciętny użytkownik linuxa? Próbuje z `sudo`... (hasło to `yourpassword`).
+```bash
+sudo nano credentials.txt 
+```
+
+11.  Jak widać niestety dalej jest sposób na zmianę w pliku...
+
+### Podatność podniesienie uprawnień
+1. Skanując jeszcze raz pod'a Polaris'em:
+```bash
+polaris audit --audit-path simple-app-pod.yaml | jq '.Results[].PodResult.ContainerResults[].Results | with_entries(select(.value.Success == false and .value.Category == "Security"))'
+```
+  
+2. Zauważasz, że widnieje tam komunikat o `privilegeEscalationAllowed`... To sprawia, że użytkownik może podnieść swoje uprawnienia... Aktualizujesz konfigurację poda `simple-app-pod.yaml`:
+```bash
+apiVersion: v1
+kind: Pod
+metadata:
+  name: simple-app-pod
+  labels:
+    app: simple-app
+spec:
+  containers:
+  - name: simple-app
+    image: jankejc/simple-app:latest 
+    volumeMounts:
+    - name: credentials-volume
+      mountPath: /data               
+    ports:
+    - containerPort: 8080    
+    securityContext:      
+      runAsNonRoot: yes  
+      runAsUser: 1001     
+      allowPrivilegeEscalation: false # dodatkowa linijka 
+  volumes:
+  - name: credentials-volume
+    persistentVolumeClaim:
+      claimName: credentials-pvc 
+```
+
+3. Ponownie skanujesz konfigurację pod'a, aby sprawdzić czy problem jest rozwiązany:
+```bash
+polaris audit --audit-path simple-app-pod.yaml | jq '.Results[].PodResult.ContainerResults[].Results | with_entries(select(.value.Success == false and .value.Category == "Security"))'
+```
+
+> **SCREEN 6**
+> 
+> Zrób zrzut ekranu, który ukazuje wynik powyższego polecenia. Nazwij go `genialny_projekt_6.png`.
+
+
+4. Wygląda na to, że podatność została załatana, więc ponawiasz próbę nadpisania pliku bez `sudo` i z nim.
+```bash
+kubectl exec -it simple-app-pod -- /bin/sh
+nano /data/credentials.txt
+sudo nano /data/credentials.txt
+```
+
+5. O ile wejść do pliku można, tak nie jest on możliwy do nadpisania, a jeśli próbujesz skorzystać z `sudo` to dostajesz komunikat, że nie możesz tego zrobić. Nareszcie!
+
+> **SCREEN 7**
+> 
+> Zrób zrzut ekranu, który ukazuje wynik polecenia z `sudo`. Nazwij go `genialny_projekt_7.png`.
+
+
+## Podsumowanie
+W końcu jesteś w stanie oddać bratu środowisko do wstępnych prac. Co prawda było jeszcze kilka ostrzeżeń w kontekście bezpieczeństwa i nie tylko, ale to na razie starczy, resztą zajmiesz się kiedy indziej. Ostatecznie projekt nie okazał się całkowitą stratą czasu, bo nauczyłeś się przynajmniej jak dobrze wdrażać pod'y i na co zwracać uwagę w przyszłości. Szczególnie jeśli jest tak dużo narzędzi, które mogą Ci w tym pomóc...  
+
+
+## Przybornik
+Usunięcie serwisu
+```bash
+kubectl delete service [NAZWA_SERWISU]
+```
+
+Restart całego środowiska, gdyby były jakieś problemy z niestawiającymi się pod'ami.
+```bash
+systemctl restart kubelet
+```
+
+Usunięcie PersistentVolume
+```bash
+kubectl delete pv [NAZWA_PV]
+```
+
+Usunięcie PersistentVolumeClaim
+```bash
+kubectl delete pvc [NAZWA_PVC]
+```
+
+Dostęp na pod'a
+```bash
+kubectl exec -it simple-app-pod -- /bin/sh
+```
+
+Usunięcie pod'a
+```bash
+kubectl delete pod [NAZWA_PODA]
+```
+
+Wdrożenie
+```bash
+kubectl apply -f [NAZWA]
+```
+
+Podejrzenie wszystkich pod'ów
+```bash
+kubectl get pods -A
+```
+
+---
+
+# Zadanie 3 - izolacja sieci w systemie Kubernetes
 Zadanie polega na odizolowaniu odpowiednich komponentów systemu Kubernetes na poziomie sieciowym z wykorzystaniem Network Policies.
 Zadanie podzielone zostało na następujące fazy:
 1. Wcielisz się w rolę developera i wykonasz deployment swojej prostej aplikacji webowej wraz z bazą danych. 
@@ -732,6 +1242,15 @@ spec:
   selector:
     app: web-app-pod
 ```
+
+Teraz należy wykonać także port forwarding na maszynie wirtualnej, podobnie jak robiliśmy to w ramach zadania drugiego. W pierwszej kolejności należy wyłączyć maszynę wirtualną.
+Gdy maszyna się całkowicie wyłączy wchodzisz w jej ustawienia w VirtualBox'ie. Tam wchodzisz w Network/Adapter z NAT'em/Advanced/Port Forwarding i dodajesz nowy wpis z konkretnymi wartościami w odpowiednich polach:
+- name: task3webapp,
+- protocol: TCP,
+- Host IP: (zostaje puste),
+- Host Port: XX31, gdzie `XX` to dwie ostatnie cyfry naszego numeru indeksu
+- Guest IP: (zostaje puste),
+- Guest Port: 30001.
 
 ### 4. Logowanie
 
@@ -934,5 +1453,8 @@ oraz zastosować komendą `kubectl apply -f`
 Proszę ponownie wykonać skan naszego namespace pod kątem braku domyślnej polityki `deny`, analogicznie jak w punkcie 6.1.
 Proszę wykonać zrzut ekranu prezentujący wynik takiego skanowania i nazwać go XXXXXX_zad3_7.jpg, gdzie XXXXXX to nasz numer indeksu.
 
-## 7. Konsolidacja plików wynikowych
-Zrzuty ekranu oraz wnioski spakować w plik zip. [TODO: jak zbieramy?]
+# Autorzy
+https://github.com/Wojciech-Baranowski
+https://github.com/jankejc
+https://github.com/Karakean
+https://github.com/jhgrzybowski
