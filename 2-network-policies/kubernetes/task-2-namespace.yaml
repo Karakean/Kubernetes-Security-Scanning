@@ -1,6 +1,0 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: task-2-namespace
-  labels:
-    networking/namespace: task-2-namespace

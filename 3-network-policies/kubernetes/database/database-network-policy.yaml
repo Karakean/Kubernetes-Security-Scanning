@@ -2,7 +2,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: database-network-policy
-  namespace: task-2-namespace
+  namespace: task-3-namespace
 spec:
   podSelector:
     matchLabels:
@@ -14,7 +14,7 @@ spec:
     - from:
       - namespaceSelector:
           matchLabels:
-            networking/namespace: task-2-namespace
+            networking/namespace: task-3-namespace
         podSelector:
           matchLabels:
             app: web-app-pod

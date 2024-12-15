@@ -592,11 +592,11 @@ Za wszelkie aktywności nadobowiązkowe (przykładowo: przeprowadzenie testów m
 
 ---
 
-# Zadanie 2. - izolacja sieci w systemie Kubernetes
+# Zadanie 3. - izolacja sieci w systemie Kubernetes
 Zadanie polega na odizolowaniu odpowiednich komponentów systemu Kubernetes na poziomie sieciowym z wykorzystaniem Network Policies.
 Zadanie podzielone zostało na następujące fazy:
 1. Wcielisz się w rolę developera i wykonasz deployment swojej prostej aplikacji webowej wraz z bazą danych. 
-2. Wcielisz się w rolę atakującego i wykorzystasz domyślny brak izolacji podów w systemie Kubernetes wykonując atak na bazę danych, która została stworzona w ramach zadania pierwszego.
+2. Wcielisz się w rolę atakującego i wykorzystasz domyślny brak izolacji podów w systemie Kubernetes wykonując atak na bazę danych, która została stworzona w ramach pierwszej fazy.
 3. Wcielisz się w rolę administratora systemu Kubernetes i z wykorzystaniem odpowiednich narzędzi wykryjesz brak odpowiedniej izolacji sieci.
 4. Wciąż jako administrator wprowadzisz odpowiednią izolację sieci z wykorzystaniem Network Policies.
 5. Ponownie wcielisz się w rolę atakującego, aby powtórzyć atak.
@@ -608,17 +608,17 @@ W ramach tej części zadania wcielamy się w rolę developera, który chce wyko
 
 ### 1. Tworzenie namespace
 W pierwszej kolejności musimy stworzyć namespace w ramach którego będziemy wdrażać swoje zasoby.
-Tworzymy plik o nazwie task-2-namespace.yaml z następującą zawartością:
+Tworzymy plik o nazwie task-3-namespace.yaml z następującą zawartością:
 ```yaml
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: task-2-namespace
+  name: task-3-namespace
   labels:
-    networking/namespace: task-2-namespace
+    networking/namespace: task-3-namespace
 ```
 Zasób tworzymy poprzez wykonanie komendy
-`kubectl apply -f task-2-namespace.yaml`
+`kubectl apply -f task-3-namespace.yaml`
 
 ### 2. Wdrażanie bazy danych
 Następnie wdrażamy odpowiedniego poda z naszą bazą danych. Tworzymy plik database-pod.yaml z następującą zawartością:
@@ -627,7 +627,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: database-pod
-  namespace: task-2-namespace
+  namespace: task-3-namespace
   labels:
     app: database-pod
 spec:
@@ -659,7 +659,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: database-service
-  namespace: task-2-namespace
+  namespace: task-3-namespace
 spec:
   ports:
   - port: 5432
@@ -675,7 +675,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: web-app-deployment
-  namespace: task-2-namespace
+  namespace: task-3-namespace
   labels:
     app: web-app-deployment
 spec:
@@ -722,7 +722,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: web-app-service
-  namespace: task-2-namespace
+  namespace: task-3-namespace
 spec:
   type: NodePort
   ports:
@@ -739,7 +739,7 @@ W przeglądarce wpisujemy adres `http://localhost:XX31`, gdzie `XX` to dwie osta
 Naszym oczom ukazuje się ekran logowania do którego wprowadzamy wymyślone przez siebie dane.
 Uwaga! Nie należy wprowadzać swoich prawdziwych loginów i haseł!
 Po zalogowaniu powinniśmy uzyskać komunikat o pomyślnym zalogowaniu.
-Wykonujemy zrzut ekranu i nazywamy go XXXXXX_zad2_1.jpg, gdzie XXXXXX to nasz numer indeksu. 
+Wykonujemy zrzut ekranu i nazywamy go XXXXXX_zad3_1.jpg, gdzie XXXXXX to nasz numer indeksu. 
 
 ## 2. Atak na bazę danych
 
@@ -752,7 +752,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: attacker-pod
-  namespace: task-2-namespace
+  namespace: task-3-namespace
   labels:
     app: attacker-pod
 spec:
@@ -769,10 +769,10 @@ spec:
 ```
 
 ### 2. Uzyskanie adresu IP
-Poprzez wykonanie komendy `kubectl get pods -o wide -n task-2-namespace` uzyskujemy adres IP poda z bazą danych. W rzeczywistym scenariuszu ataku adres ten moglibyśmy uzyskać np. poprzez skanowanie sieci.
+Poprzez wykonanie komendy `kubectl get pods -o wide -n task-3-namespace` uzyskujemy adres IP poda z bazą danych. W rzeczywistym scenariuszu ataku adres ten moglibyśmy uzyskać np. poprzez skanowanie sieci.
 
 ### 3. Wykonanie ataku
-Na poda pełniącego funkcję naszego środowiska do ataku dostajemy się z wykorzystaniem komendy `kubectl exec -it attacker-pod -n task-2-namespace -- /bin/sh`.
+Na poda pełniącego funkcję naszego środowiska do ataku dostajemy się z wykorzystaniem komendy `kubectl exec -it attacker-pod -n task-3-namespace -- /bin/sh`.
 Po pomyślnym wejściu do poda mozna sprawdzić łączność z bazą danych poleceniem `ping <ADRES_IP_BAZY_DANYCH>`.
 W celu połączenia z bazą danych wykonujemy komendę:
 `psql -h <ADRES_IP_BAZY_DANYCH> -p 5432 -U <NAZWA_UŻYTKOWNIKA> -d database`
@@ -780,7 +780,7 @@ gdzie w `<ADRES_IP_BAZY_DANYCH>` wprowadzamy uzyskany adres IP poda bazy danych,
 
 Po podłączeniu się do bazy wykonujemy komendę:
 `SELECT * FROM users;`
-Wykonujemy zrzut ekranu i nazywamy go XXXXXX_zad2_2.jpg, gdzie XXXXXX to nasz numer indeksu.
+Wykonujemy zrzut ekranu i nazywamy go XXXXXX_zad3_2.jpg, gdzie XXXXXX to nasz numer indeksu.
 Po wykonaniu proszę wyjść z poda komendą exit a następnie usunąć go komendą `kubectl delete pod <NAZWA_PODA> -n <NAZWA_NAMESPACE>`.
 
 ## 3. Skan systemu
@@ -796,10 +796,10 @@ Dla przykładu może, ale nie musi, być to narzędzie Kubescape, które instalu
 ### 2. Przeprowadzenie skanu pod kątem braku polityk sieciowych
 
 W celu uzyskania dokładniejszych informacji odnośnie polityk sieciowych w naszym namespace z narzędziem Kubescape wykonujemy skan z opcjami jak poniżej:
-`kubescape scan control C-0260 -v --include-namespaces task-2-namespace`
+`kubescape scan control C-0260 -v --include-namespaces task-3-namespace`
 
 Niezależnie od wykorzystanego narzędzia proszę załączyć odpowiedni zrzut ekranu jako dowód wykrycia braku izolacji sieci w naszym namespace.
-Proszę nazwać go XXXXXX_zad2_3.jpg, gdzie XXXXXX to nasz numer indeksu.
+Proszę nazwać go XXXXXX_zad3_3.jpg, gdzie XXXXXX to nasz numer indeksu.
 
 ## 4. Wprowadzenie izolacji sieci
 
@@ -812,7 +812,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: database-network-policy
-  namespace: task-2-namespace
+  namespace: task-3-namespace
 spec:
   podSelector:
     matchLabels:
@@ -824,7 +824,7 @@ spec:
     - from:
       - namespaceSelector:
           matchLabels:
-            networking/namespace: task-2-namespace
+            networking/namespace: task-3-namespace
         podSelector:
           matchLabels:
             app: web-app-pod
@@ -840,7 +840,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: web-app-network-policy
-  namespace: task-2-namespace
+  namespace: task-3-namespace
 spec:
   podSelector:
     matchLabels:
@@ -857,7 +857,7 @@ spec:
     - to:
       - namespaceSelector:
           matchLabels:
-            networking/namespace: task-2-namespace
+            networking/namespace: task-3-namespace
         podSelector:
           matchLabels:
             app: database-pod
@@ -874,13 +874,13 @@ spec:
 Proszę ponownie w przeglądarce wpisać adres `http://localhost:XX31`, gdzie `XX` to dwie ostatnie cyfry naszego numeru indeksu i upewnić się, że proces logowania nadal działa.
 
 ### 3. Powtórny skan
-Proszę powtórzyć skan (z punktu 3.2) a zrzut ekranu wynikowego skanu nazwać XXXXXX_zad2_4.jpg, gdzie XXXXXX to nasz numer indeksu.
+Proszę powtórzyć skan (z punktu 3.2) a zrzut ekranu wynikowego skanu nazwać XXXXXX_zad3_4.jpg, gdzie XXXXXX to nasz numer indeksu.
 
 ## 5. Powtórny atak na bazę danych
 
 W tej fazie zadania powracamy do roli atakującego i ponownie próbujemy wykonać atak na bazę danych.
 Proszę wykonać kroki analogiczne do punktu 2.
-Czy atak się powiódł? Dlaczego otrzymaliśmy taki rezultat? Proszę odpowiedzieć w 1-2 zdaniach i swoje wnioski spisać w pliku XXXXXX_zad2_wnioski.txt, gdzie XXXXXX to nasz numer indeksu.
+Czy atak się powiódł? Dlaczego otrzymaliśmy taki rezultat? Proszę odpowiedzieć w 1-2 zdaniach i swoje wnioski spisać w pliku XXXXXX_zad3_wnioski.txt, gdzie XXXXXX to nasz numer indeksu.
 
 ## 6. Zastosowanie domyślnej polityki sieciowej dla namespace
 
@@ -900,20 +900,20 @@ mv kubeaudit /usr/local/bin/
 ```
 
 Następnie wykonujemy skan naszego namespace pod kątem braku domyślnej polityki `deny`.
-Dla narzędzie kubeaudit, przy założeniu, że definicja naszego namespace znajduje się w pliku `task-2-namespace.yaml`, jest to następująca komenda:
-`kubeaudit netpols -f task-2-namespace.yaml`.
+Dla narzędzie kubeaudit, przy założeniu, że definicja naszego namespace znajduje się w pliku `task-3-namespace.yaml`, jest to następująca komenda:
+`kubeaudit netpols -f task-3-namespace.yaml`.
 
-Proszę wykonać zrzut ekranu prezentujący wynik takiego skanowania i nazwać go XXXXXX_zad2_6.jpg, gdzie XXXXXX to nasz numer indeksu.
+Proszę wykonać zrzut ekranu prezentujący wynik takiego skanowania i nazwać go XXXXXX_zad3_6.jpg, gdzie XXXXXX to nasz numer indeksu.
 
 ### 2. Zastosowanie domyślnej polityki sieciowej dla namespace
-Proszę zmodyfikować zawartość pliku `task-2-namespace.yaml` na tę widoczną ponizej:
+Proszę zmodyfikować zawartość pliku `task-3-namespace.yaml` na tę widoczną ponizej:
 ```yaml
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: task-2-namespace
+  name: task-3-namespace
   labels:
-    networking/namespace: task-2-namespace
+    networking/namespace: task-3-namespace
 
 ---
 
@@ -921,7 +921,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: default-deny-all
-  namespace: task-2-namespace
+  namespace: task-3-namespace
 spec:
   podSelector: {}
   policyTypes:
@@ -930,9 +930,9 @@ spec:
 ```
 oraz zastosować komendą `kubectl apply -f`
 
-### 2. Powtórny skan
+### 3. Powtórny skan
 Proszę ponownie wykonać skan naszego namespace pod kątem braku domyślnej polityki `deny`, analogicznie jak w punkcie 6.1.
-Proszę wykonać zrzut ekranu prezentujący wynik takiego skanowania i nazwać go XXXXXX_zad2_7.jpg, gdzie XXXXXX to nasz numer indeksu.
+Proszę wykonać zrzut ekranu prezentujący wynik takiego skanowania i nazwać go XXXXXX_zad3_7.jpg, gdzie XXXXXX to nasz numer indeksu.
 
 ## 7. Konsolidacja plików wynikowych
 Zrzuty ekranu oraz wnioski spakować w plik zip. [TODO: jak zbieramy?]
