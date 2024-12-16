@@ -125,13 +125,16 @@ curl -O https://files.simmondobber.com/files/debian-binsh.ova
 
 ### 2. Uruchomienie środowiska (w przypadku wybrania naszego obrazu)
 
-Do uruchomienia środowiska zalecamy narzędzie VirtualBox:
+Do uruchomienia środowiska zalecamy narzędzie VirtualBox. Poniżej komenda której można użyć do zaimportowania obrazu w przypadku posiadania systemu z rodziny GNU/Linux:
 
 ```bash
 wget -q https://www.virtualbox.org/download/oracle_vbox_2016.asc -O- | sudo apt-key add -
 sudo add-apt-repository "deb [arch=amd64] https://download.virtualbox.org/virtualbox/debian $(lsb_release -cs) contrib"
 sudo apt-get install -y virtualbox-7.0 
 ```
+
+W przypadku GUI należy wybrać opcję "Import", jak na zrzucie ekranu poniżej, a następnie wskazać plik debian-binsh.ova.
+
 
 Pracujemy na użytkowniku root. Hasło to `kti`. Na maszynie znajdują się preinstalowane narzędzia przydatne min. do debugowania.
 
@@ -1452,6 +1455,260 @@ oraz zastosować komendą `kubectl apply -f`
 ### 3. Powtórny skan
 Proszę ponownie wykonać skan naszego namespace pod kątem braku domyślnej polityki `deny`, analogicznie jak w punkcie 6.1.
 Proszę wykonać zrzut ekranu prezentujący wynik takiego skanowania i nazwać go XXXXXX_zad3_7.jpg, gdzie XXXXXX to nasz numer indeksu.
+
+
+
+# Zadanie 4 - Uprawnienia RBAC i identyfikacja błędnych konfiguracji
+
+## Cel ćwiczenia
+
+1. Zrozumienie zasad zarządzania uprawnieniami w Kubernetes (RBAC).
+2. Identyfikowanie błędnych konfiguracji RBAC za pomocą narzędzi wewnętrznych klastra `kubectl auth`
+3. Poznanie potencjalnych konsekwencji niewłaściwych konfiguracji RBAC.
+4. Uświadomienie, że każdy proces w klastrze działa z określonymi uprawnieniami i jak ważne jest ich ograniczenie.
+
+---
+
+### Faza 1: Zademonstrowanie skutków nadania zbyt wysokich uprawnień użytkownikowi. Dlaczego stosujemy zasadę najmniejszych uprawnień. Więcej na: https://kubernetes.io/docs/concepts/security/rbac-good-practices/#least-privilege
+
+### Krok 1: Tworzenie roli dla użytkownika i nadawanie uprawnień
+
+1. Stwórz manifest RBAC dla zasobu typu `Role` nadający użytkownikowi `developer` uprawnienia do operowania na podach. Zależy nam na możliwości wylistowania i monitorowania podów (`get`, `list`, `watch`) oraz ich dodawania i usuwania (`create`, `delete`).
+
+   ```yaml
+   tee developer-role.yaml > /dev/null <<EOF
+   apiVersion: rbac.authorization.k8s.io/v1
+   kind: Role
+   metadata:
+     namespace: default
+     name: developer
+   rules:
+   - apiGroups: [""]
+     resources: ["pods"]
+     # W nawiasy podaj dozwolone operacje dla roli developer
+     verbs: []
+   ---
+   apiVersion: rbac.authorization.k8s.io/v1
+   kind: RoleBinding
+   metadata:
+     namespace: default
+     name: developer-binding
+   subjects:
+   - kind: User
+     name: developer
+     apiGroup: rbac.authorization.k8s.io
+   roleRef:
+     kind: Role
+     name: developer
+     apiGroup: rbac.authorization.k8s.io
+   EOF
+   ```
+
+2. Zastosuj manifest:
+   ```bash
+   kubectl apply -f developer-role.yaml
+   ```
+   Uwaga: przygotowany plik `developer-role.yaml` zawiera manifest dla tworzenia zasobu roli (`Role`) jak i powiązywania go do użytkownika/procesu (`RoleBinding`). Dlatego wdrażając jeden plik mamy zapewnione, że utworzona rola zostanie już przypisana do użytkownika.
+
+3. W ramach sprawdzenia powiązania można wpisać polecenie:
+   ```bash
+   kubectl describe rolebinding
+   ```
+
+### Krok 2: Analiza konsekwencji
+
+1. Stwórz testowy pod w klastrze:
+   ```bash
+   kubectl run nginx --image=nginx --as=developer
+   ```
+
+2. Sprawdź uruchomione pody:
+   ```bash
+   kubectl get pods --as=developer
+   ```
+
+3. Weryfikacja: sprawdź czy użytkownik `developer` może usuwać pody:
+   ```bash
+   # Symulacja działania użytkownika
+   kubectl auth can-i delete pods --as=developer
+   ```
+   Zostanie zwrócona wartość `yes/no`
+
+4. Teraz spróbuj usunąć utworzonego poda `nginx`:
+   ```bash
+   kubectl delete pod nginx --as=developer
+   ```
+   
+#### Element analizy: operacje, na które pozwoliliśmy developerowi jeszcze w wielkim stopniu nie wpływają na bezpieczeństwo zasobów całego klastra. Intuicyjnie dajemy programistom swój osobny namespace, gdzie zazwyczaj mają już swoje środowiska wdrożone na podach, czasami mogą dodawać nowe. Usuwanie tych zasobów może wykraczać poza kompetencje zwykłego developera, jednakże trzeba pamiętać, że pracuje on cały czas w odizolowanym obszarze (wspomniany namespace), tak samo zrobiliśmy z naszym testowym podem. Co jeżeli użytkownik może wyjść poza swój namespace?
+
+### Krok 3: Złamanie zasady najmniejszych uprawnień
+
+1. Stwórz manifest `developer-cluster-role.yaml`:
+   ```yaml
+   tee developer-cluster-role.yaml > /dev/null <<EOF
+   apiVersion: rbac.authorization.k8s.io/v1
+   kind: ClusterRole
+   metadata:
+     name: developer-cr
+   rules:
+   - apiGroups: [""]
+     resources: ["*"]
+     verbs: ["*"]
+   ---
+   apiVersion: rbac.authorization.k8s.io/v1
+   kind: ClusterRoleBinding
+   metadata:
+     name: developer-cr-binding
+   subjects:
+   - kind: User                  
+     name: developer-cr
+     apiGroup: rbac.authorization.k8s.io
+   roleRef:
+     kind: ClusterRole
+     name: developer-cr
+     apiGroup: rbac.authorization.k8s.io
+   EOF
+   ```
+
+2. Zastosuj manifest:
+   ```bash
+   kubectl apply -f developer-cluster-role.yaml
+   ```
+
+3. Sprawdzenie powiązań:
+   ```bash
+   kubectl describe rolebinding
+   ```
+
+4. Teraz można porównać reguły dla obu ról. W przypadku `developer-cluster-role.yaml` jest to zasób typu `ClusterRole`, co oznacza że użytkownik z tą rolą uzyskuje __uprawnienia do klastra__, a nie do pojedynczego obszaru. Może być to szkodliwe, ponieważ taki użytkownik ma realny wpływ na zasoby systemowe. W polach `resources: ["*"]` oraz `verbs: ["*"]` symbol `*` oznacza, że __rola ma całkowite uprawnienia do każdego zasobu w klastrze.__ Aby zaobserwoać różnice w rolach dla użytkownika `developer` oraz `developer-cr` należy wydać polecenia:
+   ```bash
+   kubectl describe role developer
+   kubectl describe clusterrole developer-cr
+   ```
+5. Widzimy zakres uprawnień dla obu ról. Dodatkowo można przeanalizować zachowanie po wykonaniu konkretnych operacji w klastrze: 
+   ```bash
+   kubectl run nginx --image=nginx --as=developer
+   kubectl get pods -n default --as=developer
+   kubectl get pods -n default --as=developer-cr
+   ```
+   Dodanie poda jako developer w namespace `default` i wyświetlenie go jest możliwe dla obu ról.
+
+6. Teraz wykonajmy operację, która będzie dotyczyła zasobów w całym klastrze, nie tylko w namespace `default`:
+   ```bash
+   kubectl get pods -n kube-system --as=developer
+   kubectl get pods -n kube-system --as=developer-cr
+   ```
+   Obserwujemy brak możliwości przejrzenia podów systemowych dla zwykłego developera. Natomiast rola typu `ClusterRole` na to już pozwala.
+
+7. W ostatnim kroku przeanalizujmy dogłębniej to do czego role mają uprawnienia. Posłuży nam do tego już wcześniej użyte polecenie `kubectl auth can-i`:
+   ```bash
+   kubectl auth can-i delete pods -n default --as=developer
+   kubectl auth can-i delete pods -n default --as=developer-cr
+   kubectl auth can-i delete pods -n kube-system --as=developer
+   kubectl auth can-i delete pods -n kube-system --as=developer-cr
+   kubectl auth can-i delete nodes --as=developer
+   kubectl auth can-i delete nodes --as=developer-cr
+   kubectl auth can-i '*' '*' --as=developer
+   kubectl auth can-i '*' '*' --as=developer-cr
+   ```
+
+#### Zadanie do opracowania: na bazie manifestu z punktu 1 w kroku 1 przygotuj plik o nazwie `kti-role.yaml`, w którym:
+- utworzysz rolę `Role` o nazwie `kti-role` dla użytkownika `kti`
+- utworzysz powiązanie `RoleBinding` o nazwie `kti-binding`
+- dasz uprawnienia tylko do namespace'u `dev_kti`
+- dozwolone operacje to tworzenie, przeglądanie oraz aktualizowanie __podów__
+#### Po utworzeniu i wdrożeniu (`kubectl apply -f kti-role.yaml`) proszę pokazać rezultat polecenia `kubectl get role kti -o yaml`
+
+---
+
+### Faza 2: Niebezpieczne uprawnienia dla procesów w klastrze
+
+### Krok 1: Utworzenie manifestu roli dla usługi `insecure-process`
+
+1. Stwórz manifest RBAC nadający `ServiceAccount` nadmierne uprawnienia:
+
+   ```yaml
+   tee service-account-role.yaml > /dev/null <<EOF
+   apiVersion: v1
+   kind: ServiceAccount
+   metadata:
+     name: insecure-process
+     namespace: default
+   ---
+   apiVersion: rbac.authorization.k8s.io/v1
+   kind: Role
+   metadata:
+     namespace: default
+     name: insecure-process-role
+   rules:
+   - apiGroups: [""]
+     resources: ["*"]
+     verbs: ["*"]
+   ---
+   apiVersion: rbac.authorization.k8s.io/v1
+   kind: RoleBinding
+   metadata:
+     namespace: default
+     name: insecure-process-binding
+   subjects:
+   - kind: ServiceAccount
+     name: insecure-process
+     namespace: default
+   roleRef:
+     kind: Role
+     name: insecure-process-role
+     apiGroup: rbac.authorization.k8s.io
+   EOF
+   ```
+
+
+2. Zastosuj manifest:
+   ```bash
+   kubectl apply -f service-account-role.yaml
+   ```
+
+### Krok 2: Utworzenie manifestu dla podatnego poda
+
+1. Stwórz manifest definujący testowego poda `insecure-pod`:
+
+   ```yaml
+   tee insecure-pod.yaml > /dev/null <<EOF
+   apiVersion: v1
+   kind: Pod
+   metadata:
+     name: insecure-pod
+     namespace: default
+   spec:
+     serviceAccountName: insecure-process
+     containers:
+       - name: nginx
+         image: nginx
+   EOF
+   ```
+
+2. Zastosuj manifest, co uruchomi podatnego poda:
+   ```bash
+   kubectl apply -f insecure-pod.yaml
+   ```
+
+##### Krok 3: Symulacja ataku
+
+1. Sprawdź uprawnienia:
+   ```bash
+   kubectl auth can-i delete pods/insecure-pod --as=system:serviceaccount:default:insecure-process --namespace=default
+   ```
+
+### Element analizy: można zaobserwować sytuację, w której to utworzony proces ma możliwość ingerowania w nasze zasoby. Klastrem rządzą więc nie tylko użytkownicy lecz także procesy, które tak samo mogą usuwać pody lub nawet przejąć kontrolę nad całym systemem.
+
+---
+
+## Wnioski i dobre praktyki
+
+1. Stosuj zasadę najmniejszych uprawnień (Principle of Least Privilege).
+2. Regularnie audytuj konfigurację RBAC.
+3. Ograniczaj dostęp do kluczowych zasobów tylko do autoryzowanych użytkowników i procesów.
+
+---
 
 # Autorzy
 https://github.com/Wojciech-Baranowski
