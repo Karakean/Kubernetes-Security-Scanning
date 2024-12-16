@@ -1,3 +1,7 @@
+# Skanowanie systemu Kubernetes pod kątem znanych podatności i błędów konfiguracji
+
+*Jeśli przeglądasz instrukcję w VS Code to podgląd .md można włączyć skrótem Ctrl+Shift+V.*
+
 # Wstęp teoretyczny
 
 ## Czym jest Kubernetes?
@@ -1476,6 +1480,7 @@ Proszę wykonać zrzut ekranu prezentujący wynik takiego skanowania i nazwać g
 1. Stwórz manifest RBAC dla zasobu typu `Role` nadający użytkownikowi `developer` uprawnienia do operowania na podach. Zależy nam na możliwości wylistowania i monitorowania podów (`get`, `list`, `watch`) oraz ich dodawania i usuwania (`create`, `delete`).
 
    ```yaml
+
    tee developer-role.yaml > /dev/null <<EOF
    apiVersion: rbac.authorization.k8s.io/v1
    kind: Role
@@ -1708,10 +1713,9 @@ Proszę wykonać zrzut ekranu prezentujący wynik takiego skanowania i nazwać g
 2. Regularnie audytuj konfigurację RBAC.
 3. Ograniczaj dostęp do kluczowych zasobów tylko do autoryzowanych użytkowników i procesów.
 
----
 
 # Autorzy
-https://github.com/Wojciech-Baranowski
-https://github.com/jankejc
-https://github.com/Karakean
-https://github.com/jhgrzybowski
+- https://github.com/Wojciech-Baranowski
+- https://github.com/jankejc
+- https://github.com/Karakean
+- https://github.com/jhgrzybowski
